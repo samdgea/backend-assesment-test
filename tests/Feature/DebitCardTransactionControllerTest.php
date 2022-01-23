@@ -30,7 +30,7 @@ class DebitCardTransactionControllerTest extends TestCase
     public function testCustomerCanSeeAListOfDebitCardTransactions()
     {
         // get /debit-card-transactions
-        $response = $this->get('api/debit-card-transactions', [
+        $response = $this->json('GET', 'api/debit-card-transactions', [
             'debit_card_id' => $this->debitCard->id
         ]);
 
@@ -44,9 +44,10 @@ class DebitCardTransactionControllerTest extends TestCase
         $otherDebitCard = DebitCard::factory()->create([
             'user_id' => $otherUser->id
         ]);
+
         // get /debit-card-transactions
         $response = $this->get('api/debit-card-transactions', [
-            'debit_card_id' => $this->otherDebitCard->id
+            'debit_card_id' => $otherDebitCard->id
         ]);
 
         $response->assertStatus(HttpResponse::HTTP_FORBIDDEN);
@@ -92,8 +93,12 @@ class DebitCardTransactionControllerTest extends TestCase
 
     public function testCustomerCanSeeADebitCardTransaction()
     {
+        $transaction = DebitCardTransaction::factory()->create([
+            'debit_card_id' => $this->debitCard->id
+        ]);
+
         // get /debit-card-transactions/{debitCardTransaction}
-        $response = $this->get('api/debit-card-transactions/' . $this->debitCard->id);
+        $response = $this->get('api/debit-card-transactions/' . $transaction->id);
 
         $response->assertStatus(HttpResponse::HTTP_OK);
     }
@@ -105,8 +110,11 @@ class DebitCardTransactionControllerTest extends TestCase
         $otherDebitCard = DebitCard::factory()->create([
             'user_id' => $otherUser->id
         ]);
+        $otherCustomerTransaction = DebitCardTransaction::factory()->create([
+            'debit_card_id' => $otherDebitCard->id
+        ]);
 
-        $response = $this->get('api/debit-card-transactions/' . $otherDebitCard->id);
+        $response = $this->get('api/debit-card-transactions/' . $otherCustomerTransaction->id);
 
         $response->assertStatus(HttpResponse::HTTP_FORBIDDEN);
     }
