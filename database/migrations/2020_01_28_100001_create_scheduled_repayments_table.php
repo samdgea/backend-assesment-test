@@ -17,7 +17,7 @@ class CreateScheduledRepaymentsTable extends Migration
             $table->id();
             $table->unsignedInteger('loan_id');
             $table->integer('amount');
-            $table->integer('outstanding_amount');
+            $table->integer('outstanding_amount')->nullable();
             $table->string('currency_code');
             $table->date('due_date');
             $table->string('status')->nullable();
