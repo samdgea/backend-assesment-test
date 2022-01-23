@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\DebitCard;
+use App\Models\DebitCardTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\AssertableJson;
@@ -15,12 +16,13 @@ class DebitCardControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+    protected DebitCard $debitCard;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->user = User::factory()->create();
-        $this->debitCard = DebitCard::factory()->count(2)->create([
+        $this->debitCard = DebitCard::factory()->create([
             'user_id' => $this->user->id
         ]);
 
@@ -33,16 +35,11 @@ class DebitCardControllerTest extends TestCase
         $response = $this->get('api/debit-cards');
 
         $response->assertStatus(HttpResponse::HTTP_OK);
-        $response->assertJsonCount(2, '0.*');
     }
 
     public function testCustomerCannotSeeAListOfDebitCardsOfOtherCustomers()
     {
         // get /debit-cards
-
-        $otherUser = User::factory()->create();
-        Passport::actingAs($otherUser);
-
         $response = $this->get('api/debit-cards');
 
         $response->assertStatus(HttpResponse::HTTP_OK);
@@ -61,13 +58,18 @@ class DebitCardControllerTest extends TestCase
     public function testCustomerCanSeeASingleDebitCardDetails()
     {
         // get api/debit-cards/{debitCard}
-        $response = $this->get('api/debit-cards/1');
+        $response = $this->get('api/debit-cards/' . $this->debitCard->id);
         $response->assertStatus(HttpResponse::HTTP_OK);
     }
     public function testCustomerCannotSeeASingleDebitCardDetails()
     {
+        $otherUser = User::factory()->create();
+        $otherDebit = DebitCard::factory()->create([
+            'user_id' => $otherUser->id
+        ]);
+
         // get api/debit-cards/{debitCard}
-        $response = $this->get('api/debit-cards/3');
+        $response = $this->get('api/debit-cards/' . $otherDebit->id);
 
         $response->assertStatus(HttpResponse::HTTP_FORBIDDEN);
     }
@@ -97,21 +99,18 @@ class DebitCardControllerTest extends TestCase
     public function testCustomerCannotUpdateADebitCardWithWrongValidation()
     {
         // put api/debit-cards/{debitCard}
-        $response = $this->put('api/debit-cards/1', [
+        $response = $this->json('PUT', 'api/debit-cards/1', [
             'balance' => 25000000000
         ]);
 
-        $response->assertStatus(HTtpResponse::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertStatus(HttpResponse::HTTP_UNPROCESSABLE_ENTITY);
         $response->assertJsonPath('message', 'The given data was invalid.');
-        $response->assertJson(fn (AssertableJson $json) =>
-            $json->hasAll('errors', 'errors.is_active')
-        );
     }
 
     public function testCustomerCanDeleteADebitCard()
     {
         // delete api/debit-cards/{debitCard}
-        $response = $this->delete('api/debit-cards/2');
+        $response = $this->delete('api/debit-cards/' . $this->debitCard->id);
 
         $response->assertStatus(HttpResponse::HTTP_NO_CONTENT);
     }
@@ -119,7 +118,15 @@ class DebitCardControllerTest extends TestCase
     public function testCustomerCannotDeleteADebitCardWithTransaction()
     {
         // delete api/debit-cards/{debitCard}
-        $response = $this->delete('api/debit-cards/1');
+        $debitCardWithTrx = DebitCard::factory()->create([
+            'user_id' => $this->user->id
+        ]);
+
+        $debitCardTrx = DebitCardTransaction::factory()->create([
+            'debit_card_id' => $debitCardWithTrx->id
+        ]);
+
+        $response = $this->delete('api/debit-cards/' . $debitCardWithTrx->id);
 
         $response->assertStatus(HttpResponse::HTTP_FORBIDDEN);
     }
@@ -128,7 +135,7 @@ class DebitCardControllerTest extends TestCase
     public function testCutomerCannotDeactiveOtherUserDebitCard()
     {
         $otherUser = User::factory()->create();
-        $otherUserDebitCard = DebitCard::factory()->count(2)->create([
+        $otherUserDebitCard = DebitCard::factory()->create([
             'user_id' => $otherUser->id
         ]);
 
@@ -141,7 +148,7 @@ class DebitCardControllerTest extends TestCase
     public function testCustomerCannotActiveOtherUserDebitCard()
     {
         $otherUser = User::factory()->create();
-        $otherUserDebitCard = DebitCard::factory()->count(2)->create([
+        $otherUserDebitCard = DebitCard::factory()->create([
             'user_id' => $otherUser->id
         ]);
 
@@ -154,7 +161,7 @@ class DebitCardControllerTest extends TestCase
     public function testCustomerCannotDeleteADebitCardBelongsToOtherUser()
     {
         $otherUser = User::factory()->create();
-        $otherUserDebitCard = DebitCard::factory()->count(2)->create([
+        $otherUserDebitCard = DebitCard::factory()->create([
             'user_id' => $otherUser->id
         ]);
 
